@@ -4,6 +4,32 @@ import { useState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { createEvent } from './actions'
 
+const TIME_OPTIONS = [
+  '時間未定',
+  ...Array.from({ length: 32 }, (_, i) => {
+    const h = Math.floor(i / 2) + 8
+    const m = i % 2 === 0 ? '00' : '30'
+    return `${h}:${m}`
+  }),
+]
+
+function formatSlot(date: string, time: string): string {
+  if (!date) return ''
+  const d = new Date(date + 'T00:00:00')
+  const month = d.getMonth() + 1
+  const day = d.getDate()
+  const weekday = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()]
+  return time === '時間未定'
+    ? `${month}月${day}日(${weekday})`
+    : `${month}月${day}日(${weekday}) ${time}`
+}
+
+const inputStyle = {
+  borderColor: '#E2DDD4',
+  background: '#F5F2EC',
+  color: '#2D2A24',
+}
+
 function SubmitButton() {
   const { pending } = useFormStatus()
   return (
@@ -23,13 +49,17 @@ function SubmitButton() {
   )
 }
 
-export default function Home() {
-  const [dates, setDates] = useState([''])
+type Slot = { date: string; time: string }
 
-  const addDate = () => setDates(d => [...d, ''])
-  const removeDate = (i: number) => setDates(d => d.filter((_, j) => j !== i))
-  const updateDate = (i: number, value: string) =>
-    setDates(d => { const n = [...d]; n[i] = value; return n })
+export default function Home() {
+  const [slots, setSlots] = useState<Slot[]>([{ date: '', time: '19:00' }])
+
+  const addSlot = () => setSlots(s => [...s, { date: '', time: '19:00' }])
+  const removeSlot = (i: number) => setSlots(s => s.filter((_, j) => j !== i))
+  const updateSlot = (i: number, field: keyof Slot, value: string) =>
+    setSlots(s => { const n = [...s]; n[i] = { ...n[i], [field]: value }; return n })
+
+  const today = new Date().toISOString().split('T')[0]
 
   return (
     <main className="min-h-screen py-12 px-4" style={{ background: '#F5F2EC' }}>
@@ -52,6 +82,16 @@ export default function Home() {
           }}
         >
           <form action={createEvent} className="space-y-6">
+            {/* 送信用の隠しフィールド（日付＋時間を整形した文字列） */}
+            {slots.map((slot, i) => (
+              <input
+                key={i}
+                type="hidden"
+                name="dates"
+                value={formatSlot(slot.date, slot.time)}
+              />
+            ))}
+
             <div>
               <label
                 className="block text-xs font-semibold tracking-widest uppercase mb-2"
@@ -65,7 +105,7 @@ export default function Home() {
                 required
                 placeholder="例: チーム飲み会"
                 className="w-full rounded-lg px-4 py-2.5 text-sm border outline-none"
-                style={{ borderColor: '#E2DDD4', background: '#F5F2EC', color: '#2D2A24' }}
+                style={inputStyle}
               />
             </div>
 
@@ -81,7 +121,7 @@ export default function Home() {
                 rows={3}
                 placeholder="備考があれば入力してください"
                 className="w-full rounded-lg px-4 py-2.5 text-sm border outline-none resize-none"
-                style={{ borderColor: '#E2DDD4', background: '#F5F2EC', color: '#2D2A24' }}
+                style={inputStyle}
               />
             </div>
 
@@ -93,22 +133,31 @@ export default function Home() {
                 日程候補 <span style={{ color: '#C8694A' }}>*</span>
               </label>
               <div className="space-y-2">
-                {dates.map((date, i) => (
-                  <div key={i} className="flex gap-2">
+                {slots.map((slot, i) => (
+                  <div key={i} className="flex gap-2 items-center">
                     <input
-                      type="text"
-                      name="dates"
-                      value={date}
-                      onChange={e => updateDate(i, e.target.value)}
-                      placeholder="例: 5月3日 19:00"
-                      className="flex-1 rounded-lg px-4 py-2.5 text-sm border outline-none"
-                      style={{ borderColor: '#E2DDD4', background: '#F5F2EC', color: '#2D2A24' }}
+                      type="date"
+                      value={slot.date}
+                      min={today}
+                      onChange={e => updateSlot(i, 'date', e.target.value)}
+                      className="flex-1 rounded-lg px-3 py-2.5 text-sm border outline-none"
+                      style={inputStyle}
                     />
-                    {dates.length > 1 && (
+                    <select
+                      value={slot.time}
+                      onChange={e => updateSlot(i, 'time', e.target.value)}
+                      className="rounded-lg px-3 py-2.5 text-sm border outline-none"
+                      style={{ ...inputStyle, minWidth: '100px' }}
+                    >
+                      {TIME_OPTIONS.map(t => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                    {slots.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => removeDate(i)}
-                        className="px-3 rounded-lg text-sm font-medium transition-colors"
+                        onClick={() => removeSlot(i)}
+                        className="px-3 py-2.5 rounded-lg text-sm font-medium flex-shrink-0"
                         style={{ color: '#8C8880', background: '#E2DDD4' }}
                       >
                         ×
@@ -118,7 +167,7 @@ export default function Home() {
                 ))}
                 <button
                   type="button"
-                  onClick={addDate}
+                  onClick={addSlot}
                   className="text-sm font-medium mt-1"
                   style={{ color: '#C8694A' }}
                 >
