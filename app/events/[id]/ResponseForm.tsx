@@ -5,8 +5,11 @@ import { useFormStatus } from 'react-dom'
 import { submitResponse } from '@/app/actions'
 import type { Slot, Answer } from '@/lib/types'
 
-const LABEL: Record<Answer, string> = { o: '○', d: '△', x: '×' }
-const COLOR: Record<Answer, string> = { o: '#6B8F71', d: '#C8A84A', x: '#C8694A' }
+const OPTIONS: { value: Answer; label: string; color: string; bg: string }[] = [
+  { value: 'o', label: '○', color: '#6B8F71', bg: '#6B8F7122' },
+  { value: 'd', label: '△', color: '#C8A84A', bg: '#C8A84A22' },
+  { value: 'x', label: '×', color: '#C8694A', bg: '#C8694A22' },
+]
 
 function SubmitButton() {
   const { pending } = useFormStatus()
@@ -32,11 +35,8 @@ export default function ResponseForm({ eventId, slots }: { eventId: string; slot
     Object.fromEntries(slots.map(s => [s.id, 'o']))
   )
 
-  const toggle = (slotId: string) =>
-    setAnswers(prev => ({
-      ...prev,
-      [slotId]: prev[slotId] === 'o' ? 'd' : prev[slotId] === 'd' ? 'x' : 'o',
-    }))
+  const select = (slotId: string, value: Answer) =>
+    setAnswers(prev => ({ ...prev, [slotId]: value }))
 
   return (
     <div
@@ -77,32 +77,47 @@ export default function ResponseForm({ eventId, slots }: { eventId: string; slot
         </div>
 
         <div>
-          <p
-            className="text-xs font-semibold tracking-widest uppercase mb-3"
-            style={{ color: '#8C8880' }}
-          >
-            出欠（タップで切替: ○→△→×）
-          </p>
+          <div className="flex items-center mb-2">
+            <p className="text-xs font-semibold tracking-widest uppercase flex-1" style={{ color: '#8C8880' }}>
+              出欠
+            </p>
+            <div className="flex gap-4 w-36 text-center">
+              {OPTIONS.map(o => (
+                <span key={o.value} className="flex-1 text-xs font-bold" style={{ color: o.color }}>
+                  {o.label}
+                </span>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-2">
             {slots.map(slot => {
               const ans = answers[slot.id]
               return (
-                <div key={slot.id} className="flex items-center justify-between gap-3">
+                <div key={slot.id} className="flex items-center gap-3">
                   <span className="text-sm flex-1" style={{ color: '#2D2A24' }}>
                     {slot.date_label}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => toggle(slot.id)}
-                    className="w-11 h-11 rounded-lg font-bold text-lg transition-transform active:scale-90 flex-shrink-0"
-                    style={{
-                      background: COLOR[ans] + '22',
-                      color: COLOR[ans],
-                      border: `2px solid ${COLOR[ans]}`,
-                    }}
-                  >
-                    {LABEL[ans]}
-                  </button>
+                  <div className="flex gap-2 w-36">
+                    {OPTIONS.map(o => {
+                      const selected = ans === o.value
+                      return (
+                        <button
+                          key={o.value}
+                          type="button"
+                          onClick={() => select(slot.id, o.value)}
+                          className="flex-1 h-10 rounded-lg font-bold text-base transition-transform active:scale-90"
+                          style={{
+                            background: selected ? o.bg : 'transparent',
+                            color: selected ? o.color : '#B0AA9E',
+                            border: `2px solid ${selected ? o.color : '#E2DDD4'}`,
+                          }}
+                        >
+                          {o.label}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               )
             })}
