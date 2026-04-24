@@ -5,7 +5,7 @@ import { useFormStatus } from 'react-dom'
 import { createEvent } from './actions'
 
 const TIME_OPTIONS = [
-  '時間未定',
+  '未定',
   ...Array.from({ length: 32 }, (_, i) => {
     const h = Math.floor(i / 2) + 8
     const m = i % 2 === 0 ? '00' : '30'
@@ -13,15 +13,16 @@ const TIME_OPTIONS = [
   }),
 ]
 
-function formatSlot(date: string, time: string): string {
+function formatSlot(date: string, start: string, end: string): string {
   if (!date) return ''
   const d = new Date(date + 'T00:00:00')
   const month = d.getMonth() + 1
   const day = d.getDate()
   const weekday = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()]
-  return time === '時間未定'
-    ? `${month}月${day}日(${weekday})`
-    : `${month}月${day}日(${weekday}) ${time}`
+  const base = `${month}月${day}日(${weekday})`
+  if (start === '未定') return base
+  if (end === '未定') return `${base} ${start}〜`
+  return `${base} ${start}〜${end}`
 }
 
 const inputStyle = {
@@ -49,12 +50,12 @@ function SubmitButton() {
   )
 }
 
-type Slot = { date: string; time: string }
+type Slot = { date: string; start: string; end: string }
 
 export default function Home() {
-  const [slots, setSlots] = useState<Slot[]>([{ date: '', time: '19:00' }])
+  const [slots, setSlots] = useState<Slot[]>([{ date: '', start: '10:00', end: '11:00' }])
 
-  const addSlot = () => setSlots(s => [...s, { date: '', time: '19:00' }])
+  const addSlot = () => setSlots(s => [...s, { date: '', start: '10:00', end: '11:00' }])
   const removeSlot = (i: number) => setSlots(s => s.filter((_, j) => j !== i))
   const updateSlot = (i: number, field: keyof Slot, value: string) =>
     setSlots(s => { const n = [...s]; n[i] = { ...n[i], [field]: value }; return n })
@@ -82,13 +83,12 @@ export default function Home() {
           }}
         >
           <form action={createEvent} className="space-y-6">
-            {/* 送信用の隠しフィールド（日付＋時間を整形した文字列） */}
             {slots.map((slot, i) => (
               <input
                 key={i}
                 type="hidden"
                 name="dates"
-                value={formatSlot(slot.date, slot.time)}
+                value={formatSlot(slot.date, slot.start, slot.end)}
               />
             ))}
 
@@ -103,7 +103,7 @@ export default function Home() {
                 type="text"
                 name="title"
                 required
-                placeholder="例: チーム飲み会"
+                placeholder="例: ○○打合せ"
                 className="w-full rounded-lg px-4 py-2.5 text-sm border outline-none"
                 style={inputStyle}
               />
@@ -132,43 +132,59 @@ export default function Home() {
               >
                 日程候補 <span style={{ color: '#C8694A' }}>*</span>
               </label>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {slots.map((slot, i) => (
-                  <div key={i} className="flex gap-2 items-center">
-                    <input
-                      type="date"
-                      value={slot.date}
-                      min={today}
-                      onChange={e => updateSlot(i, 'date', e.target.value)}
-                      className="flex-1 rounded-lg px-3 py-2.5 text-sm border outline-none"
-                      style={inputStyle}
-                    />
-                    <select
-                      value={slot.time}
-                      onChange={e => updateSlot(i, 'time', e.target.value)}
-                      className="rounded-lg px-3 py-2.5 text-sm border outline-none"
-                      style={{ ...inputStyle, minWidth: '100px' }}
-                    >
-                      {TIME_OPTIONS.map(t => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
-                    {slots.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeSlot(i)}
-                        className="px-3 py-2.5 rounded-lg text-sm font-medium flex-shrink-0"
-                        style={{ color: '#8C8880', background: '#E2DDD4' }}
+                  <div key={i} className="space-y-1.5">
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="date"
+                        value={slot.date}
+                        min={today}
+                        onChange={e => updateSlot(i, 'date', e.target.value)}
+                        className="flex-1 rounded-lg px-3 py-2.5 text-sm border outline-none"
+                        style={inputStyle}
+                      />
+                      {slots.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeSlot(i)}
+                          className="px-3 py-2.5 rounded-lg text-sm font-medium flex-shrink-0"
+                          style={{ color: '#8C8880', background: '#E2DDD4' }}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex gap-2 items-center pl-1">
+                      <span className="text-xs" style={{ color: '#8C8880' }}>開始</span>
+                      <select
+                        value={slot.start}
+                        onChange={e => updateSlot(i, 'start', e.target.value)}
+                        className="rounded-lg px-3 py-2 text-sm border outline-none flex-1"
+                        style={inputStyle}
                       >
-                        ×
-                      </button>
-                    )}
+                        {TIME_OPTIONS.map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                      <span className="text-xs" style={{ color: '#8C8880' }}>終了</span>
+                      <select
+                        value={slot.end}
+                        onChange={e => updateSlot(i, 'end', e.target.value)}
+                        className="rounded-lg px-3 py-2 text-sm border outline-none flex-1"
+                        style={inputStyle}
+                      >
+                        {TIME_OPTIONS.map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 ))}
                 <button
                   type="button"
                   onClick={addSlot}
-                  className="text-sm font-medium mt-1"
+                  className="text-sm font-medium"
                   style={{ color: '#C8694A' }}
                 >
                   + 日程を追加
