@@ -65,7 +65,7 @@ export default function HeatmapGrid({
           <div key={time} className="flex">
             <div
               className="flex items-center justify-end pr-2 text-xs flex-shrink-0"
-              style={{ width: 44, height: 24, color: '#8C8880', visibility: ti % 2 === 0 ? 'visible' : 'hidden' }}
+              style={{ width: 44, height: 'var(--cell-h)', color: '#8C8880', visibility: ti % 2 === 0 ? 'visible' : 'hidden' }}
             >
               {time}
             </div>
@@ -81,7 +81,7 @@ export default function HeatmapGrid({
                   key={dg.date_label}
                   className="flex-shrink-0 flex items-center justify-center text-xs font-bold"
                   style={{
-                    width: 64, height: 24, background: bg, color: text,
+                    width: 64, height: 'var(--cell-h)', background: bg, color: text,
                     border: isBest ? '2px solid #6B8F71' : '1px solid #FDFAF5',
                   }}
                   onMouseEnter={inRange && total > 0 ? (e) => showTooltip(e, names, count) : undefined}

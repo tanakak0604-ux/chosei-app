@@ -8,6 +8,13 @@
   --muted: #8C8880;
   --accent: #C8694A;
   --success: #6B8F71;
+  --cell-h: 36px;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --cell-h: 24px;
+  }
 }
 
 @theme inline {

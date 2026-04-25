@@ -45,6 +45,7 @@ export default function AvailabilityGrid({
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const dragModeRef = useRef<boolean | null>(null)
+  const recentTouchRef = useRef(false)
   const gridRef = useRef<HTMLDivElement>(null)
 
   const getKey = (date: string, time: string) => `${date}|${time}`
@@ -59,6 +60,7 @@ export default function AvailabilityGrid({
   }, [])
 
   const handleMouseDown = (date: string, time: string) => {
+    if (recentTouchRef.current) return // タッチ後の合成mousedownを無視
     const key = getKey(date, time)
     const adding = !selected.has(key)
     dragModeRef.current = adding
@@ -143,7 +145,7 @@ export default function AvailabilityGrid({
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: '#8C8880' }}>
+            <p className="text-xs font-semibold tracking-widests uppercase" style={{ color: '#8C8880' }}>
               参加できる時間帯
             </p>
             <div className="flex gap-2">
@@ -159,7 +161,7 @@ export default function AvailabilityGrid({
               </button>
             </div>
           </div>
-          <p className="text-xs mb-3" style={{ color: '#B0AA9E' }}>ドラッグで複数選択できます</p>
+          <p className="text-xs mb-3" style={{ color: '#B0AA9E' }}>タップまたはドラッグで複数選択できます</p>
 
           <div className="flex gap-3 text-xs mb-3" style={{ color: '#8C8880' }}>
             <span className="flex items-center gap-1">
@@ -198,7 +200,9 @@ export default function AvailabilityGrid({
                   <div
                     className="flex items-center justify-end pr-2 text-xs flex-shrink-0"
                     style={{
-                      width: 44, height: 24, color: '#8C8880',
+                      width: 44,
+                      height: 'var(--cell-h)',
+                      color: '#8C8880',
                       visibility: ti % 2 === 0 ? 'visible' : 'hidden',
                     }}
                   >
@@ -216,7 +220,7 @@ export default function AvailabilityGrid({
                         className="flex-shrink-0"
                         style={{
                           width: 64,
-                          height: 24,
+                          height: 'var(--cell-h)',
                           background: !inRange ? '#F5F2EC' : isOn ? '#6B8F71' : '#E2DDD4',
                           border: '1px solid #FDFAF5',
                           cursor: inRange ? 'pointer' : 'default',
@@ -224,6 +228,8 @@ export default function AvailabilityGrid({
                         onMouseDown={inRange ? () => handleMouseDown(dg.date_label, time) : undefined}
                         onMouseEnter={inRange ? () => handleMouseEnter(dg.date_label, time) : undefined}
                         onTouchStart={inRange ? () => {
+                          recentTouchRef.current = true
+                          setTimeout(() => { recentTouchRef.current = false }, 500)
                           const adding = !selected.has(key)
                           dragModeRef.current = adding
                           applyCell(dg.date_label, time, adding)
