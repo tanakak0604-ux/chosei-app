@@ -1,11 +1,12 @@
-export function generateTimeSlots(dayStart: string, dayEnd: string): string[] {
-  const toMins = (t: string) => {
-    const [h, m] = t.split(':').map(Number)
-    return h * 60 + m
-  }
-  const toTime = (mins: number) =>
-    `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`
+const toMins = (t: string) => {
+  const [h, m] = t.split(':').map(Number)
+  return h * 60 + m
+}
 
+const toTime = (mins: number) =>
+  `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`
+
+export function generateTimeSlots(dayStart: string, dayEnd: string): string[] {
   const slots: string[] = []
   let cur = toMins(dayStart)
   const end = toMins(dayEnd)
@@ -14,6 +15,18 @@ export function generateTimeSlots(dayStart: string, dayEnd: string): string[] {
     cur += 30
   }
   return slots
+}
+
+export function computeOverallRange(slots: { time_start: string; time_end: string }[]): { start: string; end: string } {
+  if (slots.length === 0) return { start: '09:00', end: '18:00' }
+  const minStart = Math.min(...slots.map(s => toMins(s.time_start)))
+  const maxEnd = Math.max(...slots.map(s => toMins(s.time_end)))
+  return { start: toTime(minStart), end: toTime(maxEnd) }
+}
+
+export function isInRange(time: string, slotStart: string, slotEnd: string): boolean {
+  const t = toMins(time)
+  return t >= toMins(slotStart) && t < toMins(slotEnd)
 }
 
 export function formatDateLabel(dateLabel: string): string {

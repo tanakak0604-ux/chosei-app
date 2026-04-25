@@ -9,12 +9,21 @@ export async function createEvent(formData: FormData) {
 
   const title = (formData.get('title') as string).trim()
   const memo = (formData.get('memo') as string)?.trim() || null
-  const day_start = formData.get('day_start') as string
-  const day_end = formData.get('day_end') as string
   const dates = formData.getAll('dates') as string[]
-  const validDates = dates.filter(Boolean)
+  const time_starts = formData.getAll('time_starts') as string[]
+  const time_ends = formData.getAll('time_ends') as string[]
 
-  if (!title || validDates.length === 0) return
+  const validSlots = dates
+    .map((date, i) => ({ date, start: time_starts[i] ?? '09:00', end: time_ends[i] ?? '18:00' }))
+    .filter(s => s.date)
+
+  if (!title || validSlots.length === 0) return
+
+  // eventsのday_start/day_endはスロット全体の最小・最大で設定
+  const allStarts = validSlots.map(s => s.start).sort()
+  const allEnds = validSlots.map(s => s.end).sort()
+  const day_start = allStarts[0]
+  const day_end = allEnds[allEnds.length - 1]
 
   const { data: event, error } = await supabase
     .from('events')
@@ -25,9 +34,11 @@ export async function createEvent(formData: FormData) {
   if (error || !event) throw new Error('イベントの作成に失敗しました')
 
   await supabase.from('slots').insert(
-    validDates.map((date_label, position) => ({
+    validSlots.map(({ date, start, end }, position) => ({
       event_id: event.id,
-      date_label,
+      date_label: date,
+      time_start: start,
+      time_end: end,
       position,
     }))
   )

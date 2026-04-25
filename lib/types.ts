@@ -11,6 +11,8 @@ export interface Slot {
   id: string
   event_id: string
   date_label: string
+  time_start: string
+  time_end: string
   position: number
 }
 

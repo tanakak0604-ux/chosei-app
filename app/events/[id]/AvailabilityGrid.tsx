@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useFormStatus } from 'react-dom'
 import { submitAvailability } from '@/app/actions'
-import { generateTimeSlots, formatDateLabel } from '@/lib/utils'
+import { generateTimeSlots, computeOverallRange, isInRange, formatDateLabel } from '@/lib/utils'
 import type { Slot } from '@/lib/types'
 
 function SubmitButton() {
@@ -28,15 +28,13 @@ function SubmitButton() {
 export default function AvailabilityGrid({
   eventId,
   slots,
-  dayStart,
-  dayEnd,
 }: {
   eventId: string
   slots: Slot[]
-  dayStart: string
-  dayEnd: string
 }) {
-  const timeSlots = generateTimeSlots(dayStart, dayEnd)
+  const { start: overallStart, end: overallEnd } = computeOverallRange(slots)
+  const timeSlots = generateTimeSlots(overallStart, overallEnd)
+
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const dragModeRef = useRef<boolean | null>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -44,11 +42,10 @@ export default function AvailabilityGrid({
   const getKey = (date: string, time: string) => `${date}|${time}`
 
   const applyCell = useCallback((date: string, time: string, adding: boolean) => {
-    const key = getKey(date, time)
     setSelected(prev => {
       const next = new Set(prev)
-      if (adding) next.add(key)
-      else next.delete(key)
+      if (adding) next.add(getKey(date, time))
+      else next.delete(getKey(date, time))
       return next
     })
   }, [])
@@ -68,7 +65,6 @@ export default function AvailabilityGrid({
   useEffect(() => {
     const el = gridRef.current
     if (!el) return
-
     const handleTouchMove = (e: TouchEvent) => {
       if (dragModeRef.current === null) return
       e.preventDefault()
@@ -78,7 +74,6 @@ export default function AvailabilityGrid({
       const time = target?.dataset.time
       if (date && time) applyCell(date, time, dragModeRef.current)
     }
-
     el.addEventListener('touchmove', handleTouchMove, { passive: false })
     return () => el.removeEventListener('touchmove', handleTouchMove)
   }, [applyCell])
@@ -95,7 +90,11 @@ export default function AvailabilityGrid({
 
   const selectAll = () => {
     const all = new Set<string>()
-    slots.forEach(s => timeSlots.forEach(t => all.add(getKey(s.date_label, t))))
+    slots.forEach(s =>
+      timeSlots.forEach(t => {
+        if (isInRange(t, s.time_start, s.time_end)) all.add(getKey(s.date_label, t))
+      })
+    )
     setSelected(all)
   }
 
@@ -119,10 +118,7 @@ export default function AvailabilityGrid({
         ))}
 
         <div>
-          <label
-            className="block text-xs font-semibold tracking-widest uppercase mb-2"
-            style={{ color: '#8C8880' }}
-          >
+          <label className="block text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: '#8C8880' }}>
             お名前 <span style={{ color: '#C8694A' }}>*</span>
           </label>
           <input
@@ -141,37 +137,29 @@ export default function AvailabilityGrid({
               参加できる時間帯
             </p>
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={selectAll}
+              <button type="button" onClick={selectAll}
                 className="text-xs px-2 py-1 rounded-md font-medium"
-                style={{ background: '#6B8F71', color: '#fff' }}
-              >
+                style={{ background: '#6B8F71', color: '#fff' }}>
                 全選択
               </button>
-              <button
-                type="button"
-                onClick={() => setSelected(new Set())}
+              <button type="button" onClick={() => setSelected(new Set())}
                 className="text-xs px-2 py-1 rounded-md font-medium"
-                style={{ background: '#E2DDD4', color: '#8C8880' }}
-              >
+                style={{ background: '#E2DDD4', color: '#8C8880' }}>
                 クリア
               </button>
             </div>
           </div>
-
-          <p className="text-xs mb-3" style={{ color: '#B0AA9E' }}>
-            ドラッグで複数選択できます
-          </p>
+          <p className="text-xs mb-3" style={{ color: '#B0AA9E' }}>ドラッグで複数選択できます</p>
 
           <div className="flex gap-3 text-xs mb-3" style={{ color: '#8C8880' }}>
             <span className="flex items-center gap-1">
-              <span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#6B8F71' }} />
-              参加できる
+              <span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#6B8F71' }} />参加できる
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#E2DDD4' }} />
-              参加できない
+              <span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#E2DDD4' }} />参加できない
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#F5F2EC', border: '1px solid #E2DDD4' }} />対象外
             </span>
           </div>
 
@@ -181,12 +169,13 @@ export default function AvailabilityGrid({
               <div className="flex mb-1">
                 <div style={{ width: 44, flexShrink: 0 }} />
                 {slots.map(slot => (
-                  <div
-                    key={slot.id}
-                    className="text-center text-xs font-semibold"
-                    style={{ width: 64, flexShrink: 0, color: '#2D2A24' }}
-                  >
-                    {formatDateLabel(slot.date_label)}
+                  <div key={slot.id} className="text-center flex-shrink-0" style={{ width: 64 }}>
+                    <div className="text-xs font-semibold" style={{ color: '#2D2A24' }}>
+                      {formatDateLabel(slot.date_label)}
+                    </div>
+                    <div className="text-xs" style={{ color: '#B0AA9E' }}>
+                      {slot.time_start}〜{slot.time_end}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -197,37 +186,36 @@ export default function AvailabilityGrid({
                   <div
                     className="flex items-center justify-end pr-2 text-xs flex-shrink-0"
                     style={{
-                      width: 44,
-                      height: 24,
-                      color: '#8C8880',
+                      width: 44, height: 24, color: '#8C8880',
                       visibility: ti % 2 === 0 ? 'visible' : 'hidden',
                     }}
                   >
                     {time}
                   </div>
                   {slots.map(slot => {
+                    const inRange = isInRange(time, slot.time_start, slot.time_end)
                     const key = getKey(slot.date_label, time)
                     const isOn = selected.has(key)
                     return (
                       <div
                         key={slot.id}
-                        data-date={slot.date_label}
-                        data-time={time}
-                        className="flex-shrink-0 cursor-pointer transition-colors"
+                        data-date={inRange ? slot.date_label : undefined}
+                        data-time={inRange ? time : undefined}
+                        className="flex-shrink-0"
                         style={{
                           width: 64,
                           height: 24,
-                          background: isOn ? '#6B8F71' : '#E2DDD4',
-                          border: '1px solid #F5F2EC',
-                          borderRadius: ti === 0 ? '4px 4px 0 0' : ti === timeSlots.length - 1 ? '0 0 4px 4px' : '0',
+                          background: !inRange ? '#F5F2EC' : isOn ? '#6B8F71' : '#E2DDD4',
+                          border: '1px solid #FDFAF5',
+                          cursor: inRange ? 'pointer' : 'default',
                         }}
-                        onMouseDown={() => handleMouseDown(slot.date_label, time)}
-                        onMouseEnter={() => handleMouseEnter(slot.date_label, time)}
-                        onTouchStart={() => {
+                        onMouseDown={inRange ? () => handleMouseDown(slot.date_label, time) : undefined}
+                        onMouseEnter={inRange ? () => handleMouseEnter(slot.date_label, time) : undefined}
+                        onTouchStart={inRange ? () => {
                           const adding = !selected.has(key)
                           dragModeRef.current = adding
                           applyCell(slot.date_label, time, adding)
-                        }}
+                        } : undefined}
                       />
                     )
                   })}
