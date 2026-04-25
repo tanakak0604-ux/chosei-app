@@ -14,11 +14,19 @@ export default async function EventPage({
   const { id } = await params
   const supabase = getSupabase()
 
-  const [{ data: event }, { data: slots }, { data: participants }] = await Promise.all([
+  const [
+    { data: event, error: eventError },
+    { data: slots, error: slotsError },
+    { data: participants, error: participantsError }
+  ] = await Promise.all([
     supabase.from('events').select('*').eq('id', id).single<Event>(),
     supabase.from('slots').select('*').eq('event_id', id).order('position').returns<Slot[]>(),
     supabase.from('participants').select('*').eq('event_id', id).order('created_at').returns<Participant[]>(),
   ])
+
+  if (eventError) console.error('events error:', eventError)
+  if (slotsError) console.error('slots error:', slotsError)
+  if (participantsError) console.error('participants error:', participantsError)
 
   if (!event) notFound()
 
