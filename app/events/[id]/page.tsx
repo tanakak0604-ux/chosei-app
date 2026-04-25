@@ -1,10 +1,11 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
-import { generateTimeSlots, computeOverallRange, isInAnyRange, formatDateLabel, getHeatColor, groupSlotsByDate } from '@/lib/utils'
+import { generateTimeSlots, computeOverallRange, groupSlotsByDate } from '@/lib/utils'
 import type { Event, Slot, Participant, AvailabilityRecord } from '@/lib/types'
 import AvailabilityGrid from './AvailabilityGrid'
 import CopyButton from './CopyButton'
+import HeatmapGrid from './HeatmapGrid'
 
 export default async function EventPage({
   params,
@@ -43,6 +44,8 @@ export default async function EventPage({
 
   const availability = rawAvailability ?? []
 
+  const participantNameMap = Object.fromEntries(safeParticipants.map(p => [p.id, p.name]))
+
   const availMap: Record<string, Set<string>> = {}
   availability.forEach(a => {
     const key = `${a.date_label}|${a.time_start}`
@@ -50,15 +53,21 @@ export default async function EventPage({
     availMap[key].add(a.participant_id)
   })
 
+  // participant_id → name に変換
+  const availNames: Record<string, string[]> = {}
+  Object.entries(availMap).forEach(([key, idSet]) => {
+    availNames[key] = Array.from(idSet).map(id => participantNameMap[id]).filter(Boolean) as string[]
+  })
+
   const { start: overallStart, end: overallEnd } = computeOverallRange(safeSlots)
   const timeSlots = generateTimeSlots(overallStart, overallEnd)
   const dateGroups = groupSlotsByDate(safeSlots)
   const total = safeParticipants.length
 
-  const bestSlots = new Set<string>()
+  const bestSlots: string[] = []
   if (total > 0) {
     Object.entries(availMap).forEach(([key, set]) => {
-      if (set.size === total) bestSlots.add(key)
+      if (set.size === total) bestSlots.push(key)
     })
   }
 
@@ -87,7 +96,7 @@ export default async function EventPage({
             <span className="text-xs" style={{ color: '#8C8880' }}>{total}人が回答済み</span>
           </div>
 
-          {bestSlots.size > 0 && (
+          {bestSlots.length > 0 && (
             <div className="text-xs px-3 py-2 rounded-lg mb-4 font-medium" style={{ background: '#E8F0E9', color: '#6B8F71' }}>
               ★ 全員が参加できる時間帯があります
             </div>
@@ -105,63 +114,14 @@ export default async function EventPage({
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <div className="inline-block">
-              {/* 日付ヘッダー */}
-              <div className="flex mb-1">
-                <div style={{ width: 44, flexShrink: 0 }} />
-                {dateGroups.map(dg => (
-                  <div key={dg.date_label} className="text-center flex-shrink-0" style={{ width: 64 }}>
-                    <div className="text-xs font-semibold" style={{ color: '#2D2A24' }}>
-                      {formatDateLabel(dg.date_label)}
-                    </div>
-                    {dg.ranges.map((r, i) => (
-                      <div key={i} className="text-xs" style={{ color: '#B0AA9E' }}>
-                        {r.time_start}〜{r.time_end}
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-
-              {/* 時間行 */}
-              {timeSlots.map((time, ti) => (
-                <div key={time} className="flex">
-                  <div
-                    className="flex items-center justify-end pr-2 text-xs flex-shrink-0"
-                    style={{ width: 44, height: 24, color: '#8C8880', visibility: ti % 2 === 0 ? 'visible' : 'hidden' }}
-                  >
-                    {time}
-                  </div>
-                  {dateGroups.map(dg => {
-                    const inRange = isInAnyRange(time, dg.ranges)
-                    const key = `${dg.date_label}|${time}`
-                    const count = inRange ? (availMap[key]?.size ?? 0) : 0
-                    const { bg, text } = inRange ? getHeatColor(count, total) : { bg: '#F5F2EC', text: '#B0AA9E' }
-                    const isBest = bestSlots.has(key)
-                    return (
-                      <div
-                        key={dg.date_label}
-                        className="flex-shrink-0 flex items-center justify-center text-xs font-bold"
-                        style={{
-                          width: 64,
-                          height: 24,
-                          background: bg,
-                          color: text,
-                          border: isBest ? '2px solid #6B8F71' : '1px solid #FDFAF5',
-                        }}
-                        title={inRange && total > 0 ? `${count}/${total}人が参加可能` : ''}
-                      >
-                        {inRange && total > 0 && count > 0 && (
-                          <span style={{ fontSize: 10 }}>{isBest ? '★' : count}</span>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              ))}
-            </div>
-          </div>
+          <HeatmapGrid
+            dateGroups={dateGroups}
+            timeSlots={timeSlots}
+            availNames={availNames}
+            allParticipantNames={safeParticipants.map(p => p.name)}
+            total={total}
+            bestSlots={bestSlots}
+          />
 
           {safeParticipants.length > 0 && (
             <div className="mt-4 pt-4" style={{ borderTop: '1px solid #E2DDD4' }}>
