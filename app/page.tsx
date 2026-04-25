@@ -51,7 +51,7 @@ export default function Home() {
   const endOptions = TIME_OPTIONS.slice(1)
 
   return (
-    <main className="min-h-screen py-12 px-4" style={{ background: '#F5F2EC' }}>
+    <main className="min-h-screen pt-32 pb-12 px-4" style={{ background: '#F5F2EC' }}>
       <div className="max-w-lg mx-auto">
         <div className="text-center mb-10">
           <h1 className="text-2xl font-bold tracking-wide" style={{ color: '#2D2A24' }}>
