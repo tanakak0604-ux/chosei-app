@@ -89,7 +89,7 @@ export default function HeatmapGrid({
                   onMouseLeave={() => setTooltip(null)}
                 >
                   {inRange && total > 0 && count > 0 && (
-                    <span style={{ fontSize: 10 }}>{isBest ? '★' : count}</span>
+                    <span style={{ fontSize: 10 }}>{isBest ? '〇' : count}</span>
                   )}
                 </div>
               )

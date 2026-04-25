@@ -98,7 +98,7 @@ export default async function EventPage({
 
           {bestSlots.length > 0 && (
             <div className="text-xs px-3 py-2 rounded-lg mb-4 font-medium" style={{ background: '#E8F0E9', color: '#6B8F71' }}>
-              ★ 全員が参加できる時間帯があります
+              〇 全員が参加できる時間帯があります
             </div>
           )}
 
