@@ -92,7 +92,7 @@ export default async function EventPage({
           style={{ background: '#FDFAF5', borderColor: '#E2DDD4', boxShadow: '0 4px 24px rgba(45,42,36,0.07)' }}
         >
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold" style={{ color: '#2D2A24' }}>空き時間ヒートマップ</h2>
+            <h2 className="font-semibold" style={{ color: '#2D2A24' }}>日程候補</h2>
             <span className="text-xs" style={{ color: '#8C8880' }}>{total}人が回答済み</span>
           </div>
 
