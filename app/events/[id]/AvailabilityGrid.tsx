@@ -3,7 +3,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useFormStatus } from 'react-dom'
 import { submitAvailability } from '@/app/actions'
-import { generateTimeSlots, computeOverallRange, isInRange, formatDateLabel } from '@/lib/utils'
+import {
+  generateTimeSlots,
+  computeOverallRange,
+  isInAnyRange,
+  formatDateLabel,
+  groupSlotsByDate,
+  summarizeSelected,
+} from '@/lib/utils'
 import type { Slot } from '@/lib/types'
 
 function SubmitButton() {
@@ -34,6 +41,7 @@ export default function AvailabilityGrid({
 }) {
   const { start: overallStart, end: overallEnd } = computeOverallRange(slots)
   const timeSlots = generateTimeSlots(overallStart, overallEnd)
+  const dateGroups = groupSlotsByDate(slots)
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const dragModeRef = useRef<boolean | null>(null)
@@ -90,13 +98,15 @@ export default function AvailabilityGrid({
 
   const selectAll = () => {
     const all = new Set<string>()
-    slots.forEach(s =>
+    dateGroups.forEach(dg =>
       timeSlots.forEach(t => {
-        if (isInRange(t, s.time_start, s.time_end)) all.add(getKey(s.date_label, t))
+        if (isInAnyRange(t, dg.ranges)) all.add(getKey(dg.date_label, t))
       })
     )
     setSelected(all)
   }
+
+  const summary = summarizeSelected(selected, dateGroups, timeSlots)
 
   return (
     <div
@@ -168,14 +178,16 @@ export default function AvailabilityGrid({
               {/* 日付ヘッダー */}
               <div className="flex mb-1">
                 <div style={{ width: 44, flexShrink: 0 }} />
-                {slots.map(slot => (
-                  <div key={slot.id} className="text-center flex-shrink-0" style={{ width: 64 }}>
+                {dateGroups.map(dg => (
+                  <div key={dg.date_label} className="text-center flex-shrink-0" style={{ width: 64 }}>
                     <div className="text-xs font-semibold" style={{ color: '#2D2A24' }}>
-                      {formatDateLabel(slot.date_label)}
+                      {formatDateLabel(dg.date_label)}
                     </div>
-                    <div className="text-xs" style={{ color: '#B0AA9E' }}>
-                      {slot.time_start}〜{slot.time_end}
-                    </div>
+                    {dg.ranges.map((r, i) => (
+                      <div key={i} className="text-xs" style={{ color: '#B0AA9E' }}>
+                        {r.time_start}〜{r.time_end}
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
@@ -192,14 +204,14 @@ export default function AvailabilityGrid({
                   >
                     {time}
                   </div>
-                  {slots.map(slot => {
-                    const inRange = isInRange(time, slot.time_start, slot.time_end)
-                    const key = getKey(slot.date_label, time)
+                  {dateGroups.map(dg => {
+                    const inRange = isInAnyRange(time, dg.ranges)
+                    const key = getKey(dg.date_label, time)
                     const isOn = selected.has(key)
                     return (
                       <div
-                        key={slot.id}
-                        data-date={inRange ? slot.date_label : undefined}
+                        key={dg.date_label}
+                        data-date={inRange ? dg.date_label : undefined}
                         data-time={inRange ? time : undefined}
                         className="flex-shrink-0"
                         style={{
@@ -209,12 +221,12 @@ export default function AvailabilityGrid({
                           border: '1px solid #FDFAF5',
                           cursor: inRange ? 'pointer' : 'default',
                         }}
-                        onMouseDown={inRange ? () => handleMouseDown(slot.date_label, time) : undefined}
-                        onMouseEnter={inRange ? () => handleMouseEnter(slot.date_label, time) : undefined}
+                        onMouseDown={inRange ? () => handleMouseDown(dg.date_label, time) : undefined}
+                        onMouseEnter={inRange ? () => handleMouseEnter(dg.date_label, time) : undefined}
                         onTouchStart={inRange ? () => {
                           const adding = !selected.has(key)
                           dragModeRef.current = adding
-                          applyCell(slot.date_label, time, adding)
+                          applyCell(dg.date_label, time, adding)
                         } : undefined}
                       />
                     )
@@ -223,6 +235,18 @@ export default function AvailabilityGrid({
               ))}
             </div>
           </div>
+
+          {/* 選択中の時間テキスト表示 */}
+          {summary.length > 0 && (
+            <div className="mt-3 p-3 rounded-lg text-xs space-y-1" style={{ background: '#F5F2EC' }}>
+              <p className="font-semibold tracking-widest uppercase" style={{ color: '#8C8880' }}>選択中</p>
+              {summary.map(({ date, ranges }) => (
+                <p key={date} style={{ color: '#2D2A24' }}>
+                  <span className="font-medium">{date}</span>　{ranges}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
 
         <SubmitButton />

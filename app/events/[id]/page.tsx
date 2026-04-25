@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
-import { generateTimeSlots, computeOverallRange, isInRange, formatDateLabel, getHeatColor } from '@/lib/utils'
+import { generateTimeSlots, computeOverallRange, isInAnyRange, formatDateLabel, getHeatColor, groupSlotsByDate } from '@/lib/utils'
 import type { Event, Slot, Participant, AvailabilityRecord } from '@/lib/types'
 import AvailabilityGrid from './AvailabilityGrid'
 import CopyButton from './CopyButton'
@@ -52,6 +52,7 @@ export default async function EventPage({
 
   const { start: overallStart, end: overallEnd } = computeOverallRange(safeSlots)
   const timeSlots = generateTimeSlots(overallStart, overallEnd)
+  const dateGroups = groupSlotsByDate(safeSlots)
   const total = safeParticipants.length
 
   const bestSlots = new Set<string>()
@@ -109,14 +110,16 @@ export default async function EventPage({
               {/* 日付ヘッダー */}
               <div className="flex mb-1">
                 <div style={{ width: 44, flexShrink: 0 }} />
-                {safeSlots.map(slot => (
-                  <div key={slot.id} className="text-center flex-shrink-0" style={{ width: 64 }}>
+                {dateGroups.map(dg => (
+                  <div key={dg.date_label} className="text-center flex-shrink-0" style={{ width: 64 }}>
                     <div className="text-xs font-semibold" style={{ color: '#2D2A24' }}>
-                      {formatDateLabel(slot.date_label)}
+                      {formatDateLabel(dg.date_label)}
                     </div>
-                    <div className="text-xs" style={{ color: '#B0AA9E' }}>
-                      {slot.time_start}〜{slot.time_end}
-                    </div>
+                    {dg.ranges.map((r, i) => (
+                      <div key={i} className="text-xs" style={{ color: '#B0AA9E' }}>
+                        {r.time_start}〜{r.time_end}
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
@@ -130,15 +133,15 @@ export default async function EventPage({
                   >
                     {time}
                   </div>
-                  {safeSlots.map(slot => {
-                    const inRange = isInRange(time, slot.time_start, slot.time_end)
-                    const key = `${slot.date_label}|${time}`
+                  {dateGroups.map(dg => {
+                    const inRange = isInAnyRange(time, dg.ranges)
+                    const key = `${dg.date_label}|${time}`
                     const count = inRange ? (availMap[key]?.size ?? 0) : 0
                     const { bg, text } = inRange ? getHeatColor(count, total) : { bg: '#F5F2EC', text: '#B0AA9E' }
                     const isBest = bestSlots.has(key)
                     return (
                       <div
-                        key={slot.id}
+                        key={dg.date_label}
                         className="flex-shrink-0 flex items-center justify-center text-xs font-bold"
                         style={{
                           width: 64,

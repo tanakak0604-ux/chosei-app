@@ -47,3 +47,61 @@ export function getHeatColor(count: number, total: number): { bg: string; text: 
     text: ratio >= 0.6 ? '#FFFFFF' : '#2D2A24',
   }
 }
+
+export type DateGroup = {
+  date_label: string
+  ranges: { time_start: string; time_end: string }[]
+}
+
+export function groupSlotsByDate(
+  slots: { date_label: string; time_start: string; time_end: string }[]
+): DateGroup[] {
+  const map = new Map<string, DateGroup>()
+  slots.forEach(slot => {
+    const existing = map.get(slot.date_label)
+    if (existing) {
+      existing.ranges.push({ time_start: slot.time_start, time_end: slot.time_end })
+    } else {
+      map.set(slot.date_label, {
+        date_label: slot.date_label,
+        ranges: [{ time_start: slot.time_start, time_end: slot.time_end }],
+      })
+    }
+  })
+  return Array.from(map.values())
+}
+
+export function isInAnyRange(
+  time: string,
+  ranges: { time_start: string; time_end: string }[]
+): boolean {
+  return ranges.some(r => isInRange(time, r.time_start, r.time_end))
+}
+
+export function summarizeSelected(
+  selected: Set<string>,
+  dateGroups: DateGroup[],
+  timeSlots: string[]
+): { date: string; ranges: string }[] {
+  const result: { date: string; ranges: string }[] = []
+  for (const dg of dateGroups) {
+    const selectedTimes = timeSlots.filter(t =>
+      isInAnyRange(t, dg.ranges) && selected.has(`${dg.date_label}|${t}`)
+    )
+    if (selectedTimes.length === 0) continue
+
+    const rangeStrs: string[] = []
+    let i = 0
+    while (i < selectedTimes.length) {
+      let j = i
+      while (
+        j + 1 < selectedTimes.length &&
+        toMins(selectedTimes[j + 1]) - toMins(selectedTimes[j]) === 30
+      ) j++
+      rangeStrs.push(`${selectedTimes[i]}〜${toTime(toMins(selectedTimes[j]) + 30)}`)
+      i = j + 1
+    }
+    result.push({ date: formatDateLabel(dg.date_label), ranges: rangeStrs.join('、') })
+  }
+  return result
+}
