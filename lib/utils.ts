@@ -1,4 +1,5 @@
-const toMins = (t: string) => {
+const toMins = (t: string | undefined | null) => {
+  if (!t) return 9 * 60
   const [h, m] = t.split(':').map(Number)
   return h * 60 + m
 }
