@@ -9,14 +9,16 @@ export async function createEvent(formData: FormData) {
 
   const title = (formData.get('title') as string).trim()
   const memo = (formData.get('memo') as string)?.trim() || null
+  const day_start = formData.get('day_start') as string
+  const day_end = formData.get('day_end') as string
   const dates = formData.getAll('dates') as string[]
-  const validDates = dates.map(d => d.trim()).filter(Boolean)
+  const validDates = dates.filter(Boolean)
 
   if (!title || validDates.length === 0) return
 
   const { data: event, error } = await supabase
     .from('events')
-    .insert({ title, memo })
+    .insert({ title, memo, day_start, day_end })
     .select('id')
     .single()
 
@@ -33,7 +35,7 @@ export async function createEvent(formData: FormData) {
   redirect(`/events/${event.id}`)
 }
 
-export async function submitResponse(formData: FormData) {
+export async function submitAvailability(formData: FormData) {
   const supabase = getSupabase()
 
   const eventId = formData.get('event_id') as string
@@ -49,15 +51,14 @@ export async function submitResponse(formData: FormData) {
 
   if (error || !participant) throw new Error('回答の登録に失敗しました')
 
-  const slotIds = formData.getAll('slot_ids') as string[]
+  const availableSlots = formData.getAll('available_slots') as string[]
 
-  if (slotIds.length > 0) {
-    await supabase.from('answers').insert(
-      slotIds.map(slotId => ({
-        participant_id: participant.id,
-        slot_id: slotId,
-        answer: (formData.get(`answer_${slotId}`) as string) || 'x',
-      }))
+  if (availableSlots.length > 0) {
+    await supabase.from('availability').insert(
+      availableSlots.map(slot => {
+        const [date_label, time_start] = slot.split('|')
+        return { participant_id: participant.id, date_label, time_start }
+      })
     )
   }
 

@@ -1,9 +1,9 @@
-export type Answer = 'o' | 'd' | 'x'
-
 export interface Event {
   id: string
   title: string
   memo: string | null
+  day_start: string
+  day_end: string
   created_at: string
 }
 
@@ -21,9 +21,8 @@ export interface Participant {
   created_at: string
 }
 
-export interface AnswerRecord {
-  id: string
+export interface AvailabilityRecord {
   participant_id: string
-  slot_id: string
-  answer: Answer
+  date_label: string
+  time_start: string
 }
